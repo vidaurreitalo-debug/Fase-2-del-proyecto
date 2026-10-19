@@ -240,5 +240,28 @@ def eliminarEmpleado(empleadoId):
     return redirect("/empleados")
 
 
+# RESUMEN: recorre todos los expedientes y cuenta cuantos hay de cada estado
+@app.route("/resumen")
+def resumen():
+    conexion = conectar()
+    expedientes = obtenerExpedientes(conexion)
+    conexion.close()
+
+    completos = 0
+    incompletos = 0
+    sinIniciar = 0
+
+    for expediente in expedientes:
+        if expediente["estado"] == "completo":
+            completos = completos + 1
+        elif expediente["estado"] == "incompleto":
+            incompletos = incompletos + 1
+        else:
+            sinIniciar = sinIniciar + 1
+
+    return render_template("resumen.html", expedientes=expedientes, total=len(expedientes),
+                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar)
+
+
 if __name__ == "__main__":
     app.run(debug=True)
