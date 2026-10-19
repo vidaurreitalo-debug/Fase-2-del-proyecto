@@ -229,5 +229,16 @@ def expedienteJson(empleadoId):
     return jsonify({"error": "empleado no encontrado"}), 404
 
 
+# ELIMINAR: borra el empleado y todos los documentos de su expediente
+@app.route("/empleados/eliminar/<int:empleadoId>", methods=["POST"])
+def eliminarEmpleado(empleadoId):
+    conexion = conectar()
+    conexion.execute("DELETE FROM documentos WHERE empleadoId = ?", (empleadoId,))
+    conexion.execute("DELETE FROM empleados WHERE id = ?", (empleadoId,))
+    conexion.commit()
+    conexion.close()
+    return redirect("/empleados")
+
+
 if __name__ == "__main__":
     app.run(debug=True)
