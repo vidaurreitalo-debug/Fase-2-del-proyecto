@@ -22,6 +22,9 @@
     <td><span class="estado {{ expediente.estado|replace(' ', '-') }}">{{ expediente.estado }}</span></td>
     <td class="acciones">
       <a class="boton" href="/empleados/{{ expediente.id }}">Ver expediente</a>
+      <form method="POST" action="/empleados/eliminar/{{ expediente.id }}" onsubmit="return confirm('¿Eliminar a {{ expediente.nombre }} y todo su expediente?');">
+        <button type="submit" class="peligro">Eliminar</button>
+      </form>
     </td>
   </tr>
   {% else %}
