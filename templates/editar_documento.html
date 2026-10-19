@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Actualizar documento{% endblock %}
+{% block contenido %}
+<h1>Actualizar documento</h1>
+<p>Empleado: <strong>{{ documento.nombre }}</strong> · Documento: <strong>{{ documento.documento }}</strong></p>
+<p>Estado actual: {{ documento.estado }} · Version actual: {{ documento.version }}</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="POST" action="/documentos/editar/{{ documento.id }}" class="formulario">
+  <label for="accion">Nueva accion</label>
+  <select id="accion" name="accion">
+    <option value="">Seleccione una accion</option>
+    <option value="entregar">Entregar documento (documento nuevo)</option>
+    <option value="nueva version">Nueva version (renovacion)</option>
+    <option value="pendiente">Marcar como pendiente</option>
+  </select>
+  <button type="submit">Guardar</button>
+</form>
+<p><a href="/empleados/{{ documento.empleadoId }}">Volver al expediente</a></p>
+{% endblock %}
