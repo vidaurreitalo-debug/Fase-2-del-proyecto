@@ -1,1 +1,40 @@
+/* Hoja de estilos unica del sitio Expedientes Digitales */
+body { font-family: Arial, Helvetica, sans-serif; background: #f3f7fb; color: #12263a; margin: 0; }
+main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+h1 { color: #0b4f6c; border-bottom: 3px solid #20a39e; padding-bottom: 6px; }
+a { color: #0b4f6c; }
+
+.barra { background: #0b4f6c; color: #ffffff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.marca { font-weight: bold; }
+.barra nav a { color: #ffffff; text-decoration: none; margin-left: 18px; }
+.barra nav a:hover { text-decoration: underline; }
+
+table { border-collapse: collapse; width: 100%; background: #ffffff; margin-top: 16px; }
+th { background: #0b4f6c; color: #ffffff; padding: 10px; text-align: left; }
+td { padding: 10px; border-bottom: 1px solid #dde5ec; }
+.acciones { display: flex; gap: 8px; align-items: center; }
+.acciones form { margin: 0; }
+
+.formulario { background: #ffffff; padding: 20px; border-radius: 8px; max-width: 420px; }
+label { display: block; margin-top: 12px; font-weight: bold; }
+input, select { padding: 8px; width: 100%; box-sizing: border-box; margin-top: 4px; border: 1px solid #b8c4ce; border-radius: 4px; }
+button, .boton { display: inline-block; padding: 8px 16px; background: #20a39e; color: #ffffff; border: 0; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 14px; }
+.formulario button { margin-top: 18px; }
+button:hover, .boton:hover { opacity: 0.9; }
+.peligro { background: #c0392b; }
+
+.error { color: #a00000; background: #fde8e8; padding: 10px; border-radius: 6px; font-weight: bold; }
+.estado { padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+
+/* Colores de cada clasificacion del resumen */
+.completo { background: #d4f4dd; color: #146c2e; }
+.incompleto { background: #fff1c2; color: #8a5a00; }
+.sin-iniciar { background: #e2e6ea; color: #4a5560; }
+.fila-completo td { background: #effbf2; }
+.fila-incompleto td { background: #fffaea; }
+.fila-sin-iniciar td { background: #f4f6f8; }
+
+.tarjetas { display: flex; gap: 16px; flex-wrap: wrap; }
+.tarjeta { flex: 1; min-width: 160px; padding: 18px; border-radius: 8px; font-weight: bold; }
+.numero { display: block; font-size: 36px; }
 
