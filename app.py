@@ -140,3 +140,90 @@ def registrarEmpleado():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# CONSULTAR un expediente: documentos de un empleado
+@app.route("/empleados/<int:empleadoId>")
+def verExpediente(empleadoId):
+    conexion = conectar()
+    empleado = conexion.execute("SELECT * FROM empleados WHERE id = ?", (empleadoId,)).fetchone()
+    if empleado is None:
+        conexion.close()
+        abort(404)
+
+    documentos = conexion.execute(
+        "SELECT * FROM documentos WHERE empleadoId = ? ORDER BY id", (empleadoId,)
+    ).fetchall()
+    conexion.close()
+
+    documentosEntregados = 0
+    for documento in documentos:
+        if documento["estado"] == "entregado":
+            documentosEntregados = documentosEntregados + 1
+    estado = evaluarEstado(documentosEntregados, len(documentos))
+
+    return render_template("expediente.html", empleado=empleado, documentos=documentos,
+                           documentosEntregados=documentosEntregados, estado=estado)
+
+
+# MODIFICAR: actualizar el estado de un documento del expediente
+@app.route("/documentos/editar/<int:documentoId>", methods=["GET", "POST"])
+def editarDocumento(documentoId):
+    conexion = conectar()
+    documento = conexion.execute(
+        "SELECT d.*, e.nombre FROM documentos d JOIN empleados e ON e.id = d.empleadoId WHERE d.id = ?",
+        (documentoId,)
+    ).fetchone()
+    if documento is None:
+        conexion.close()
+        abort(404)
+
+    error = ""
+    if request.method == "POST":
+        accion = request.form.get("accion", "")
+
+        # Misma logica de la Fase 1: documento nuevo, nueva version o error
+        if accion == "entregar":
+            if documento["estado"] == "entregado":
+                error = "El documento ya existia. Si es una renovacion, elija 'Nueva version'."
+            else:
+                nuevoEstado = "entregado"
+                nuevaVersion = documento["version"] + 1
+        elif accion == "nueva version":
+            if documento["estado"] != "entregado":
+                error = "No se puede crear una nueva version de un documento que no se ha entregado."
+            else:
+                nuevoEstado = "entregado"
+                nuevaVersion = documento["version"] + 1
+        elif accion == "pendiente":
+            if documento["estado"] == "pendiente":
+                error = "El documento ya esta pendiente."
+            else:
+                # Se conserva el numero de version como historial
+                nuevoEstado = "pendiente"
+                nuevaVersion = documento["version"]
+        else:
+            error = "Elija una accion valida."
+
+        if error == "":
+            conexion.execute(
+                "UPDATE documentos SET estado = ?, version = ?, fechaActualizacion = ? WHERE id = ?",
+                (nuevoEstado, nuevaVersion, date.today().isoformat(), documentoId)
+            )
+            conexion.commit()
+            conexion.close()
+            return redirect("/empleados/" + str(documento["empleadoId"]))
+
+    conexion.close()
+    return render_template("editar_documento.html", documento=documento, error=error)
+
+
+# Ruta JSON de la Fase 1, ahora leyendo el expediente desde la base de datos
+@app.route("/api/expediente/<int:empleadoId>")
+def expedienteJson(empleadoId):
+    conexion = conectar()
+    expedientes = obtenerExpedientes(conexion)
+    conexion.close()
+    for expediente in expedientes:
+        if expediente["id"] == empleadoId:
+            return jsonify(expediente)
+    return jsonify({"error": "empleado no encontrado"}), 404
