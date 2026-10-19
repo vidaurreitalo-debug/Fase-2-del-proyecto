@@ -227,3 +227,7 @@ def expedienteJson(empleadoId):
         if expediente["id"] == empleadoId:
             return jsonify(expediente)
     return jsonify({"error": "empleado no encontrado"}), 404
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
