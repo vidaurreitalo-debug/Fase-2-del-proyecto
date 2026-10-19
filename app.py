@@ -85,7 +85,58 @@ def listarEmpleados():
     expedientes = obtenerExpedientes(conexion)
     conexion.close()
     return render_template("empleados.html", expedientes=expedientes)
+# REGISTRAR: formulario para registrar un empleado
+@app.route("/empleados/nuevo", methods=["GET", "POST"])
+def registrarEmpleado():
+    conexion = conectar()
+    perfiles = obtenerPerfiles(conexion)
+    error = ""
+    datos = {"nombre": "", "perfil": "", "departamento": "", "fechaIngreso": ""}
 
+    if request.method == "POST":
+        datos["nombre"] = request.form.get("nombre", "").strip()
+        datos["perfil"] = request.form.get("perfil", "").strip().lower()
+        datos["departamento"] = request.form.get("departamento", "").strip()
+        datos["fechaIngreso"] = request.form.get("fechaIngreso", "").strip()
+
+        # 1. Validar los datos antes de guardar
+        if datos["nombre"] == "" or datos["departamento"] == "" or datos["fechaIngreso"] == "":
+            error = "Todos los campos son obligatorios."
+        elif not datos["nombre"].replace(" ", "").isalpha():
+            error = "El nombre solo puede tener letras y espacios."
+        elif datos["perfil"] not in perfiles:
+            error = "Perfil no reconocido. Perfiles validos: " + ", ".join(perfiles)
+        else:
+            try:
+                fecha = datetime.strptime(datos["fechaIngreso"], "%Y-%m-%d").date()
+                if fecha > date.today():
+                    error = "La fecha de ingreso no puede ser futura."
+            except ValueError:
+                error = "La fecha de ingreso no es valida (formato AAAA-MM-DD)."
+
+        # 2. Si no hay error, guardar el empleado y crear su expediente vacio
+        if error == "":
+            cursor = conexion.execute(
+                "INSERT INTO empleados (nombre, perfil, departamento, fechaIngreso) VALUES (?, ?, ?, ?)",
+                (datos["nombre"], datos["perfil"], datos["departamento"], datos["fechaIngreso"])
+            )
+            empleadoId = cursor.lastrowid
+
+            checklist = conexion.execute(
+                "SELECT documento FROM checklist WHERE perfil = ? ORDER BY id", (datos["perfil"],)
+            ).fetchall()
+            for fila in checklist:
+                conexion.execute(
+                    "INSERT INTO documentos (empleadoId, documento, estado, version, fechaActualizacion) VALUES (?, ?, ?, ?, ?)",
+                    (empleadoId, fila["documento"], "pendiente", 0, None)
+                )
+
+            conexion.commit()
+            conexion.close()
+            return redirect("/empleados")
+
+    conexion.close()
+    return render_template("nuevo.html", error=error, datos=datos, perfiles=perfiles)
 
 if __name__ == "__main__":
     app.run(debug=True)
