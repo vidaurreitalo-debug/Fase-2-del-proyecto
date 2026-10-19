@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Expediente de {{ empleado.nombre }}{% endblock %}
+{% block contenido %}
+<h1>Expediente de {{ empleado.nombre }}</h1>
+<p>Perfil: <strong>{{ empleado.perfil }}</strong> · Departamento: {{ empleado.departamento }} · Ingreso: {{ empleado.fechaIngreso }}</p>
+<p>Documentos entregados: {{ documentosEntregados }} de {{ documentos|length }} ·
+   Estado: <span class="estado {{ estado|replace(' ', '-') }}">{{ estado }}</span></p>
+<table>
+  <tr>
+    <th>Documento</th>
+    <th>Estado</th>
+    <th>Version</th>
+    <th>Ultima actualizacion</th>
+    <th>Acciones</th>
+  </tr>
+  {% for documento in documentos %}
+  <tr>
+    <td>{{ documento.documento }}</td>
+    <td>{{ documento.estado }}</td>
+    <td>{{ documento.version }}</td>
+    <td>{{ documento.fechaActualizacion or "-" }}</td>
+    <td><a class="boton" href="/documentos/editar/{{ documento.id }}">Actualizar</a></td>
+  </tr>
+  {% endfor %}
+</table>
+<p><a href="/empleados">Volver al listado</a></p>
+{% endblock %}
