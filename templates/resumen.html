@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}Resumen{% endblock %}
+{% block contenido %}
+<h1>Resumen de expedientes</h1>
+<p>Total de empleados revisados: <strong>{{ total }}</strong></p>
+<div class="tarjetas">
+  <div class="tarjeta completo"><span class="numero">{{ completos }}</span>Completos</div>
+  <div class="tarjeta incompleto"><span class="numero">{{ incompletos }}</span>Incompletos</div>
+  <div class="tarjeta sin-iniciar"><span class="numero">{{ sinIniciar }}</span>Sin iniciar</div>
+</div>
+<table>
+  <tr>
+    <th>Empleado</th>
+    <th>Perfil</th>
+    <th>Documentos</th>
+    <th>Pendientes</th>
+    <th>Clasificacion</th>
+  </tr>
+  {% for expediente in expedientes %}
+  <tr class="fila-{{ expediente.estado|replace(' ', '-') }}">
+    <td>{{ expediente.nombre }}</td>
+    <td>{{ expediente.perfil }}</td>
+    <td>{{ expediente.documentosEntregados }} de {{ expediente.documentosRequeridos }}</td>
+    <td>{{ expediente.documentosPendientes }}</td>
+    <td>{{ expediente.estado }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
