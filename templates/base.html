@@ -1,1 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Expedientes Digitales{% endblock %} | Hospital de Diagnostico</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="barra">
+  <span class="marca">Hospital de Diagnostico · Expedientes Digitales</span>
+  <nav>
+    <a href="/empleados">Empleados</a>
+    <a href="/empleados/nuevo">Registrar</a>
+  </nav>
+</header>
+<main>
+{% block contenido %}{% endblock %}
+</main>
+</body>
+</html>
+{% extends "base.html" %}
+{% block titulo %}Registrar empleado{% endblock %}
+{% block contenido %}
+<h1>Registrar empleado</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="POST" action="/empleados/nuevo" class="formulario">
+  <label for="nombre">Nombre completo</label>
+  <input type="text" id="nombre" name="nombre" value="{{ datos.nombre }}">
 
+  <label for="perfil">Perfil</label>
+  <select id="perfil" name="perfil">
+    <option value="">Seleccione un perfil</option>
+    {% for perfil in perfiles %}
+    <option value="{{ perfil }}" {% if perfil == datos.perfil %}selected{% endif %}>{{ perfil }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="departamento">Departamento</label>
+  <input type="text" id="departamento" name="departamento" value="{{ datos.departamento }}">
+
+  <label for="fechaIngreso">Fecha de ingreso</label>
+  <input type="date" id="fechaIngreso" name="fechaIngreso" value="{{ datos.fechaIngreso }}">
+
+  <button type="submit">Guardar</button>
+</form>
+{% endblock %}
