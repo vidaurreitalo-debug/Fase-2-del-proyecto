@@ -21,6 +21,7 @@
     <td>{{ expediente.documentosEntregados }} de {{ expediente.documentosRequeridos }}</td>
     <td><span class="estado {{ expediente.estado|replace(' ', '-') }}">{{ expediente.estado }}</span></td>
     <td class="acciones">
+      <a class="boton" href="/empleados/{{ expediente.id }}">Ver expediente</a>
     </td>
   </tr>
   {% else %}
