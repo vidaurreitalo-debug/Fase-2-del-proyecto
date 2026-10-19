@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titulo %}Empleados{% endblock %}
+{% block contenido %}
+<h1>Empleados y estado de su expediente</h1>
+<table>
+  <tr>
+    <th>Nombre</th>
+    <th>Perfil</th>
+    <th>Departamento</th>
+    <th>Ingreso</th>
+    <th>Documentos</th>
+    <th>Estado</th>
+    <th>Acciones</th>
+  </tr>
+  {% for expediente in expedientes %}
+  <tr>
+    <td>{{ expediente.nombre }}</td>
+    <td>{{ expediente.perfil }}</td>
+    <td>{{ expediente.departamento }}</td>
+    <td>{{ expediente.fechaIngreso }}</td>
+    <td>{{ expediente.documentosEntregados }} de {{ expediente.documentosRequeridos }}</td>
+    <td><span class="estado {{ expediente.estado|replace(' ', '-') }}">{{ expediente.estado }}</span></td>
+    <td class="acciones">
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No hay empleados registrados.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
