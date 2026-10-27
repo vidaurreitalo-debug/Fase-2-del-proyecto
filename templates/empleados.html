@@ -2,6 +2,12 @@
 {% block titulo %}Empleados{% endblock %}
 {% block contenido %}
 <h1>Empleados y estado de su expediente</h1>
+<form method="GET" action="/empleados" class="busqueda">
+  <input type="text" name="buscar" value="{{ buscar }}" placeholder="Buscar por nombre o departamento">
+  <button type="submit">Buscar</button>
+  {% if buscar %}<a class="boton" href="/empleados">Ver todos</a>{% endif %}
+</form>
+{% if buscar %}<p>Resultados para "<strong>{{ buscar }}</strong>": {{ expedientes|length }}</p>{% endif %}
 <table>
   <tr>
     <th>Nombre</th>
@@ -28,7 +34,7 @@
     </td>
   </tr>
   {% else %}
-  <tr><td colspan="7">No hay empleados registrados.</td></tr>
+  <tr><td colspan="7">{% if buscar %}Ningun empleado coincide con la busqueda.{% else %}No hay empleados registrados.{% endif %}</td></tr>
   {% endfor %}
 </table>
 {% endblock %}
