@@ -2,7 +2,7 @@ import mysql.connector
 from datetime import date, datetime
 from flask import Flask, render_template, request, redirect, jsonify, abort
 
-app = Flask(_name_)
+app = Flask(__name__)
 app.json.sort_keys = False
 
 
@@ -317,5 +317,5 @@ def resumen():
 
 
 # El servidor se inicia al final, despues de definir TODAS las rutas
-if _name_ == "_main_":
+if __name__ == "__main__":
     app.run(debug=True)
