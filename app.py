@@ -2,7 +2,7 @@ import mysql.connector
 from datetime import date, datetime
 from flask import Flask, render_template, request, redirect, jsonify, abort
 
-app = Flask(__name__)
+app = Flask(_name_)
 app.json.sort_keys = False
 
 
@@ -33,7 +33,7 @@ def obtenerRequeridos(conexion, perfil):
 
 
 def evaluarEstado(documentosEntregados, documentosRequeridos):
-
+    # Misma decision de la Fase 1, ahora con los datos de MySQL
     if documentosEntregados == 0:
         return "sin iniciar"
     elif documentosEntregados < documentosRequeridos:
@@ -256,7 +256,7 @@ def editarDocumento(documentoId):
     return render_template("editar_documento.html", documento=documento, error=error)
 
 
-# Ruta JSON ahora leyendo el expediente desde MySQL
+# Ruta JSON de la Fase 1, ahora leyendo el expediente desde MySQL
 @app.route("/api/expediente/<int:empleadoId>")
 def expedienteJson(empleadoId):
     conexion = conectar()
@@ -300,9 +300,22 @@ def resumen():
         else:
             sinIniciar = sinIniciar + 1
 
-    return render_template("resumen.html", expedientes=expedientes, total=len(expedientes),
-                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar)
+    # MEJORA (Italo Vidaurre): filtro por clasificacion.
+    # Los contadores siempre cuentan a todos; la tabla muestra solo la clasificacion elegida.
+    filtro = request.args.get("estado", "")
+    if filtro not in ["completo", "incompleto", "sin iniciar"]:
+        filtro = ""
+
+    mostrados = []
+    for expediente in expedientes:
+        if filtro == "" or expediente["estado"] == filtro:
+            mostrados.append(expediente)
+
+    return render_template("resumen.html", expedientes=mostrados, total=len(expedientes),
+                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar,
+                           filtro=filtro)
 
 
-if __name__ == "__main__":
+# El servidor se inicia al final, despues de definir TODAS las rutas
+if _name_ == "_main_":
     app.run(debug=True)
