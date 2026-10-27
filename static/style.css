@@ -30,6 +30,10 @@ button:hover, .boton:hover { opacity: 0.9; }
 .completo { background: #d4f4dd; color: #146c2e; }
 .incompleto { background: #fff1c2; color: #8a5a00; }
 .sin-iniciar { background: #e2e6ea; color: #4a5560; }
+
+/* Estado de cada documento en el listado con JOIN */
+.entregado { background: #d4f4dd; color: #146c2e; }
+.pendiente { background: #fff1c2; color: #8a5a00; }
 .fila-completo td { background: #effbf2; }
 .fila-incompleto td { background: #fffaea; }
 .fila-sin-iniciar td { background: #f4f6f8; }
@@ -37,4 +41,3 @@ button:hover, .boton:hover { opacity: 0.9; }
 .tarjetas { display: flex; gap: 16px; flex-wrap: wrap; }
 .tarjeta { flex: 1; min-width: 160px; padding: 18px; border-radius: 8px; font-weight: bold; }
 .numero { display: block; font-size: 36px; }
-
