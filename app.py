@@ -1,22 +1,22 @@
-import sqlite3
+import mysql.connector
 from datetime import date, datetime
 from flask import Flask, render_template, request, redirect, jsonify, abort
 
 app = Flask(__name__)
 app.json.sort_keys = False
 
-BASE_DE_DATOS = "hospital.db"
-
 
 def conectar():
-    conexion = sqlite3.connect(BASE_DE_DATOS)
-    conexion.row_factory = sqlite3.Row
-    return conexion
+    # Servidor MySQL de XAMPP: usuario root y contrasena vacia
+    return mysql.connector.connect(host="localhost", user="root", password="", database="hospital")
 
 
 def obtenerPerfiles(conexion):
     # Los perfiles validos salen del checklist guardado en la base de datos
-    filas = conexion.execute("SELECT DISTINCT perfil FROM checklist ORDER BY perfil").fetchall()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT DISTINCT perfil FROM checklist ORDER BY perfil")
+    filas = cursor.fetchall()
+    cursor.close()
     perfiles = []
     for fila in filas:
         perfiles.append(fila["perfil"])
@@ -25,12 +25,15 @@ def obtenerPerfiles(conexion):
 
 def obtenerRequeridos(conexion, perfil):
     # Numero de documentos del checklist del perfil (0 si el perfil no existe)
-    fila = conexion.execute("SELECT COUNT(*) AS total FROM checklist WHERE perfil = ?", (perfil,)).fetchone()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT COUNT(*) AS total FROM checklist WHERE perfil = %s", (perfil,))
+    fila = cursor.fetchone()
+    cursor.close()
     return fila["total"]
 
 
 def evaluarEstado(documentosEntregados, documentosRequeridos):
-    # Misma decision de la Fase 1, ahora con los datos de la base de datos
+
     if documentosEntregados == 0:
         return "sin iniciar"
     elif documentosEntregados < documentosRequeridos:
@@ -43,13 +46,14 @@ def evaluarEstado(documentosEntregados, documentosRequeridos):
 
 def obtenerExpedientes(conexion):
     # Recorre todos los empleados y cuenta sus documentos entregados
-    empleados = conexion.execute("SELECT * FROM empleados ORDER BY nombre").fetchall()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM empleados ORDER BY nombre")
+    empleados = cursor.fetchall()
     expedientes = []
 
     for empleado in empleados:
-        documentos = conexion.execute(
-            "SELECT estado FROM documentos WHERE empleadoId = ?", (empleado["id"],)
-        ).fetchall()
+        cursor.execute("SELECT estado FROM documentos WHERE empleadoId = %s", (empleado["id"],))
+        documentos = cursor.fetchall()
 
         documentosEntregados = 0
         for documento in documentos:
@@ -63,13 +67,14 @@ def obtenerExpedientes(conexion):
             "nombre": empleado["nombre"],
             "perfil": empleado["perfil"],
             "departamento": empleado["departamento"],
-            "fechaIngreso": empleado["fechaIngreso"],
+            "fechaIngreso": str(empleado["fechaIngreso"]),
             "documentosEntregados": documentosEntregados,
             "documentosRequeridos": documentosRequeridos,
             "documentosPendientes": documentosRequeridos - documentosEntregados,
             "estado": evaluarEstado(documentosEntregados, documentosRequeridos)
         })
 
+    cursor.close()
     return expedientes
 
 
@@ -85,6 +90,8 @@ def listarEmpleados():
     expedientes = obtenerExpedientes(conexion)
     conexion.close()
     return render_template("empleados.html", expedientes=expedientes)
+
+
 # REGISTRAR: formulario para registrar un empleado
 @app.route("/empleados/nuevo", methods=["GET", "POST"])
 def registrarEmpleado():
@@ -114,45 +121,48 @@ def registrarEmpleado():
             except ValueError:
                 error = "La fecha de ingreso no es valida (formato AAAA-MM-DD)."
 
-        # 2. Si no hay error, guardar el empleado y crear su expediente vacio
+        # 2. Si no hay error, guardar el empleado (padre) y despues su expediente (hijos)
         if error == "":
-            cursor = conexion.execute(
-                "INSERT INTO empleados (nombre, perfil, departamento, fechaIngreso) VALUES (?, ?, ?, ?)",
+            cursor = conexion.cursor(dictionary=True)
+            cursor.execute(
+                "INSERT INTO empleados (nombre, perfil, departamento, fechaIngreso) VALUES (%s, %s, %s, %s)",
                 (datos["nombre"], datos["perfil"], datos["departamento"], datos["fechaIngreso"])
             )
+            # id que MySQL le dio al empleado nuevo: es la llave foranea de sus documentos
             empleadoId = cursor.lastrowid
 
-            checklist = conexion.execute(
-                "SELECT documento FROM checklist WHERE perfil = ? ORDER BY id", (datos["perfil"],)
-            ).fetchall()
+            cursor.execute("SELECT documento FROM checklist WHERE perfil = %s ORDER BY id", (datos["perfil"],))
+            checklist = cursor.fetchall()
             for fila in checklist:
-                conexion.execute(
-                    "INSERT INTO documentos (empleadoId, documento, estado, version, fechaActualizacion) VALUES (?, ?, ?, ?, ?)",
+                cursor.execute(
+                    "INSERT INTO documentos (empleadoId, documento, estado, version, fechaActualizacion) VALUES (%s, %s, %s, %s, %s)",
                     (empleadoId, fila["documento"], "pendiente", 0, None)
                 )
 
             conexion.commit()
+            cursor.close()
             conexion.close()
             return redirect("/empleados")
 
     conexion.close()
     return render_template("nuevo.html", error=error, datos=datos, perfiles=perfiles)
 
-if __name__ == "__main__":
-    app.run(debug=True)
 
 # CONSULTAR un expediente: documentos de un empleado
 @app.route("/empleados/<int:empleadoId>")
 def verExpediente(empleadoId):
     conexion = conectar()
-    empleado = conexion.execute("SELECT * FROM empleados WHERE id = ?", (empleadoId,)).fetchone()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM empleados WHERE id = %s", (empleadoId,))
+    empleado = cursor.fetchone()
     if empleado is None:
+        cursor.close()
         conexion.close()
         abort(404)
 
-    documentos = conexion.execute(
-        "SELECT * FROM documentos WHERE empleadoId = ? ORDER BY id", (empleadoId,)
-    ).fetchall()
+    cursor.execute("SELECT * FROM documentos WHERE empleadoId = %s ORDER BY id", (empleadoId,))
+    documentos = cursor.fetchall()
+    cursor.close()
     conexion.close()
 
     documentosEntregados = 0
@@ -165,15 +175,42 @@ def verExpediente(empleadoId):
                            documentosEntregados=documentosEntregados, estado=estado)
 
 
+# CONSULTA CON JOIN: todos los empleados con cada uno de sus documentos y su estado
+@app.route("/documentos")
+def listarDocumentos():
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT e.id AS empleadoId, e.nombre, e.perfil, e.departamento, "
+        "d.id, d.documento, d.estado, d.version, d.fechaActualizacion "
+        "FROM empleados e JOIN documentos d ON d.empleadoId = e.id "
+        "ORDER BY e.nombre, d.id"
+    )
+    filas = cursor.fetchall()
+    cursor.close()
+    conexion.close()
+
+    entregados = 0
+    for fila in filas:
+        if fila["estado"] == "entregado":
+            entregados = entregados + 1
+
+    return render_template("documentos.html", filas=filas, entregados=entregados,
+                           pendientes=len(filas) - entregados)
+
+
 # MODIFICAR: actualizar el estado de un documento del expediente
 @app.route("/documentos/editar/<int:documentoId>", methods=["GET", "POST"])
 def editarDocumento(documentoId):
     conexion = conectar()
-    documento = conexion.execute(
-        "SELECT d.*, e.nombre FROM documentos d JOIN empleados e ON e.id = d.empleadoId WHERE d.id = ?",
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT d.*, e.nombre FROM documentos d JOIN empleados e ON e.id = d.empleadoId WHERE d.id = %s",
         (documentoId,)
-    ).fetchone()
+    )
+    documento = cursor.fetchone()
     if documento is None:
+        cursor.close()
         conexion.close()
         abort(404)
 
@@ -205,19 +242,21 @@ def editarDocumento(documentoId):
             error = "Elija una accion valida."
 
         if error == "":
-            conexion.execute(
-                "UPDATE documentos SET estado = ?, version = ?, fechaActualizacion = ? WHERE id = ?",
-                (nuevoEstado, nuevaVersion, date.today().isoformat(), documentoId)
+            cursor.execute(
+                "UPDATE documentos SET estado = %s, version = %s, fechaActualizacion = %s WHERE id = %s",
+                (nuevoEstado, nuevaVersion, date.today(), documentoId)
             )
             conexion.commit()
+            cursor.close()
             conexion.close()
             return redirect("/empleados/" + str(documento["empleadoId"]))
 
+    cursor.close()
     conexion.close()
     return render_template("editar_documento.html", documento=documento, error=error)
 
 
-# Ruta JSON de la Fase 1, ahora leyendo el expediente desde la base de datos
+# Ruta JSON ahora leyendo el expediente desde MySQL
 @app.route("/api/expediente/<int:empleadoId>")
 def expedienteJson(empleadoId):
     conexion = conectar()
@@ -229,13 +268,15 @@ def expedienteJson(empleadoId):
     return jsonify({"error": "empleado no encontrado"}), 404
 
 
-# ELIMINAR: borra el empleado y todos los documentos de su expediente
+# ELIMINAR: borra el empleado. Sus documentos se borran solos por el
+# ON DELETE CASCADE de la llave foranea, asi no quedan documentos huerfanos.
 @app.route("/empleados/eliminar/<int:empleadoId>", methods=["POST"])
 def eliminarEmpleado(empleadoId):
     conexion = conectar()
-    conexion.execute("DELETE FROM documentos WHERE empleadoId = ?", (empleadoId,))
-    conexion.execute("DELETE FROM empleados WHERE id = ?", (empleadoId,))
+    cursor = conexion.cursor()
+    cursor.execute("DELETE FROM empleados WHERE id = %s", (empleadoId,))
     conexion.commit()
+    cursor.close()
     conexion.close()
     return redirect("/empleados")
 
