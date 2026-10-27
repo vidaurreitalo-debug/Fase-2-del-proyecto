@@ -372,6 +372,59 @@ def resumen():
                            filtro=filtro)
 
 
+# MEJORA (Diego Diaz): segundo reporte con contadores y acumuladores por departamento
+@app.route("/reporte/departamentos")
+def reporteDepartamentos():
+    conexion = conectar()
+    expedientes = obtenerExpedientes(conexion)
+    conexion.close()
+
+    departamentos = {}
+    for expediente in expedientes:
+        nombre = expediente["departamento"]
+        # Si es la primera vez que aparece el departamento, se crean sus contadores en 0
+        if nombre not in departamentos:
+            departamentos[nombre] = {"departamento": nombre, "empleados": 0, "completos": 0,
+                                     "incompletos": 0, "sinIniciar": 0,
+                                     "entregados": 0, "requeridos": 0}
+        datos = departamentos[nombre]
+
+        # Contadores
+        datos["empleados"] = datos["empleados"] + 1
+        if expediente["estado"] == "completo":
+            datos["completos"] = datos["completos"] + 1
+        elif expediente["estado"] == "incompleto":
+            datos["incompletos"] = datos["incompletos"] + 1
+        else:
+            datos["sinIniciar"] = datos["sinIniciar"] + 1
+
+        # Acumuladores
+        datos["entregados"] = datos["entregados"] + expediente["documentosEntregados"]
+        datos["requeridos"] = datos["requeridos"] + expediente["documentosRequeridos"]
+
+    # Porcentaje de avance de cada departamento
+    filas = []
+    totalEntregados = 0
+    totalRequeridos = 0
+    for nombre in sorted(departamentos):
+        datos = departamentos[nombre]
+        if datos["requeridos"] > 0:
+            datos["avance"] = round(datos["entregados"] * 100 / datos["requeridos"])
+        else:
+            datos["avance"] = 0
+        totalEntregados = totalEntregados + datos["entregados"]
+        totalRequeridos = totalRequeridos + datos["requeridos"]
+        filas.append(datos)
+
+    avanceGeneral = 0
+    if totalRequeridos > 0:
+        avanceGeneral = round(totalEntregados * 100 / totalRequeridos)
+
+    return render_template("reporte_departamentos.html", filas=filas,
+                           totalEntregados=totalEntregados, totalRequeridos=totalRequeridos,
+                           avanceGeneral=avanceGeneral)
+
+
 # El servidor se inicia al final, despues de definir TODAS las rutas
 if __name__ == "__main__":
     app.run(debug=True)
