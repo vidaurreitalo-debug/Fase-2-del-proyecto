@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Reporte por departamento{% endblock %}
+{% block contenido %}
+<h1>Reporte por departamento</h1>
+<p>Documentos entregados en todo el hospital: <strong>{{ totalEntregados }} de {{ totalRequeridos }}</strong>
+   · Avance general: <strong>{{ avanceGeneral }}%</strong></p>
+<table>
+  <tr>
+    <th>Departamento</th>
+    <th>Empleados</th>
+    <th>Completos</th>
+    <th>Incompletos</th>
+    <th>Sin iniciar</th>
+    <th>Documentos entregados</th>
+    <th>Avance</th>
+  </tr>
+  {% for fila in filas %}
+  <tr>
+    <td>{{ fila.departamento }}</td>
+    <td>{{ fila.empleados }}</td>
+    <td>{{ fila.completos }}</td>
+    <td>{{ fila.incompletos }}</td>
+    <td>{{ fila.sinIniciar }}</td>
+    <td>{{ fila.entregados }} de {{ fila.requeridos }}</td>
+    <td>{{ fila.avance }}%</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No hay empleados registrados.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
