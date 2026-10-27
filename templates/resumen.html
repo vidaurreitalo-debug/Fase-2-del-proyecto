@@ -8,6 +8,13 @@
   <div class="tarjeta incompleto"><span class="numero">{{ incompletos }}</span>Incompletos</div>
   <div class="tarjeta sin-iniciar"><span class="numero">{{ sinIniciar }}</span>Sin iniciar</div>
 </div>
+<p class="filtros">Mostrar:
+  <a class="boton {% if filtro == '' %}activo{% endif %}" href="/resumen">Todos</a>
+  <a class="boton {% if filtro == 'completo' %}activo{% endif %}" href="/resumen?estado=completo">Completos</a>
+  <a class="boton {% if filtro == 'incompleto' %}activo{% endif %}" href="/resumen?estado=incompleto">Incompletos</a>
+  <a class="boton {% if filtro == 'sin iniciar' %}activo{% endif %}" href="/resumen?estado=sin iniciar">Sin iniciar</a>
+</p>
+{% if filtro %}<p>Mostrando {{ expedientes|length }} expediente(s) con clasificacion <strong>{{ filtro }}</strong>.</p>{% endif %}
 <table>
   <tr>
     <th>Empleado</th>
@@ -24,6 +31,8 @@
     <td>{{ expediente.documentosPendientes }}</td>
     <td>{{ expediente.estado }}</td>
   </tr>
+  {% else %}
+  <tr><td colspan="5">No hay expedientes con esa clasificacion.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}
