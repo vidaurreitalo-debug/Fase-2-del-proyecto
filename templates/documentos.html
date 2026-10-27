@@ -4,6 +4,7 @@
 <h1>Empleados con sus documentos</h1>
 <p>Consulta con JOIN entre las tablas <strong>empleados</strong> y <strong>documentos</strong>.
    Documentos entregados: <strong>{{ entregados }}</strong> · Pendientes: <strong>{{ pendientes }}</strong></p>
+<p><a class="boton" href="/documentos/csv">Exportar a CSV</a></p>
 <table>
   <tr>
     <th>Empleado</th>
@@ -28,4 +29,6 @@
   <tr><td colspan="7">No hay documentos registrados.</td></tr>
   {% endfor %}
 </table>
+{% endblock %}
+
 {% endblock %}

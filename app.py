@@ -1,6 +1,8 @@
+import csv
+import io
 import mysql.connector
 from datetime import date, datetime
-from flask import Flask, render_template, request, redirect, jsonify, abort
+from flask import Flask, render_template, request, redirect, jsonify, abort, Response
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -221,6 +223,36 @@ def listarDocumentos():
 
     return render_template("documentos.html", filas=filas, entregados=entregados,
                            pendientes=len(filas) - entregados)
+
+
+# MEJORA (Majo Guirola): exportar a CSV el listado con JOIN de empleados y documentos
+@app.route("/documentos/csv")
+def exportarCsv():
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT e.nombre, e.perfil, e.departamento, d.documento, d.estado, d.version, d.fechaActualizacion "
+        "FROM empleados e JOIN documentos d ON d.empleadoId = e.id "
+        "ORDER BY e.nombre, d.id"
+    )
+    filas = cursor.fetchall()
+    cursor.close()
+    conexion.close()
+
+    # Se escribe el CSV en memoria: primero los encabezados y luego una fila por documento
+    salida = io.StringIO()
+    escritor = csv.writer(salida)
+    escritor.writerow(["Empleado", "Perfil", "Departamento", "Documento", "Estado", "Version", "Ultima actualizacion"])
+    for fila in filas:
+        fecha = fila["fechaActualizacion"]
+        if fecha is None:
+            fecha = ""
+        escritor.writerow([fila["nombre"], fila["perfil"], fila["departamento"], fila["documento"],
+                           fila["estado"], fila["version"], fecha])
+
+    # utf-8-sig hace que Excel muestre bien las tildes
+    return Response(salida.getvalue().encode("utf-8-sig"), mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=expedientes.csv"})
 
 
 # MODIFICAR: actualizar el estado de un documento del expediente
