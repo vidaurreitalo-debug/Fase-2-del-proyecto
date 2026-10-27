@@ -33,7 +33,7 @@ def obtenerRequeridos(conexion, perfil):
 
 
 def evaluarEstado(documentosEntregados, documentosRequeridos):
-
+    # Misma decision de la Fase 1, ahora con los datos de MySQL
     if documentosEntregados == 0:
         return "sin iniciar"
     elif documentosEntregados < documentosRequeridos:
@@ -84,12 +84,36 @@ def inicio():
 
 
 # CONSULTAR: listado de empleados con el estado de su expediente
+# MEJORA (Carlos Campos): busqueda por texto en el nombre o el departamento
 @app.route("/empleados")
 def listarEmpleados():
+    buscar = request.args.get("buscar", "").strip()
     conexion = conectar()
     expedientes = obtenerExpedientes(conexion)
+
+    if buscar != "":
+        # Los % son comodines de LIKE: buscan el texto en cualquier parte.
+        # El texto del usuario va como parametro %s, nunca pegado al SQL.
+        patron = "%" + buscar + "%"
+        cursor = conexion.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM empleados WHERE nombre LIKE %s OR departamento LIKE %s",
+                       (patron, patron))
+        filas = cursor.fetchall()
+        cursor.close()
+
+        idsEncontrados = []
+        for fila in filas:
+            idsEncontrados.append(fila["id"])
+
+        # Solo se dejan los expedientes de los empleados encontrados
+        encontrados = []
+        for expediente in expedientes:
+            if expediente["id"] in idsEncontrados:
+                encontrados.append(expediente)
+        expedientes = encontrados
+
     conexion.close()
-    return render_template("empleados.html", expedientes=expedientes)
+    return render_template("empleados.html", expedientes=expedientes, buscar=buscar)
 
 
 # REGISTRAR: formulario para registrar un empleado
@@ -256,7 +280,7 @@ def editarDocumento(documentoId):
     return render_template("editar_documento.html", documento=documento, error=error)
 
 
-# Ruta JSON ahora leyendo el expediente desde MySQL
+# Ruta JSON de la Fase 1, ahora leyendo el expediente desde MySQL
 @app.route("/api/expediente/<int:empleadoId>")
 def expedienteJson(empleadoId):
     conexion = conectar()
@@ -304,5 +328,6 @@ def resumen():
                            completos=completos, incompletos=incompletos, sinIniciar=sinIniciar)
 
 
+# El servidor se inicia al final, despues de definir TODAS las rutas
 if __name__ == "__main__":
     app.run(debug=True)

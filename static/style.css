@@ -41,3 +41,8 @@ button:hover, .boton:hover { opacity: 0.9; }
 .tarjetas { display: flex; gap: 16px; flex-wrap: wrap; }
 .tarjeta { flex: 1; min-width: 160px; padding: 18px; border-radius: 8px; font-weight: bold; }
 .numero { display: block; font-size: 36px; }
+
+
+/* Mejora de Carlos Campos: barra de busqueda del listado */
+.busqueda { display: flex; gap: 8px; align-items: center; max-width: 600px; }
+.busqueda input { margin-top: 0; }
