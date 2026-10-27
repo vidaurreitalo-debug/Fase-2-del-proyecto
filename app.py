@@ -84,7 +84,7 @@ def inicio():
 
 
 # CONSULTAR: listado de empleados con el estado de su expediente
-# MEJORA (Maria Guirola): busqueda por texto en el nombre o el departamento
+# MEJORA (Carlos Campos): busqueda por texto en el nombre o el departamento
 @app.route("/empleados")
 def listarEmpleados():
     buscar = request.args.get("buscar", "").strip()
