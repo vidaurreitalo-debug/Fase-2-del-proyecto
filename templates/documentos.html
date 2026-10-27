@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Documentos{% endblock %}
+{% block contenido %}
+<h1>Empleados con sus documentos</h1>
+<p>Consulta con JOIN entre las tablas <strong>empleados</strong> y <strong>documentos</strong>.
+   Documentos entregados: <strong>{{ entregados }}</strong> · Pendientes: <strong>{{ pendientes }}</strong></p>
+<table>
+  <tr>
+    <th>Empleado</th>
+    <th>Perfil</th>
+    <th>Departamento</th>
+    <th>Documento</th>
+    <th>Estado</th>
+    <th>Version</th>
+    <th>Ultima actualizacion</th>
+  </tr>
+  {% for fila in filas %}
+  <tr>
+    <td><a href="/empleados/{{ fila.empleadoId }}">{{ fila.nombre }}</a></td>
+    <td>{{ fila.perfil }}</td>
+    <td>{{ fila.departamento }}</td>
+    <td>{{ fila.documento }}</td>
+    <td><span class="estado {{ fila.estado }}">{{ fila.estado }}</span></td>
+    <td>{{ fila.version }}</td>
+    <td>{{ fila.fechaActualizacion or "-" }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No hay documentos registrados.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
