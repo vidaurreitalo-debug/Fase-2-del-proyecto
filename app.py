@@ -1,6 +1,8 @@
+import csv
+import io
 import mysql.connector
 from datetime import date, datetime
-from flask import Flask, render_template, request, redirect, jsonify, abort
+from flask import Flask, render_template, request, redirect, jsonify, abort, Response
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -84,12 +86,36 @@ def inicio():
 
 
 # CONSULTAR: listado de empleados con el estado de su expediente
+# MEJORA (Carlos Campos): busqueda por texto en el nombre o el departamento
 @app.route("/empleados")
 def listarEmpleados():
+    buscar = request.args.get("buscar", "").strip()
     conexion = conectar()
     expedientes = obtenerExpedientes(conexion)
+
+    if buscar != "":
+        # Los % son comodines de LIKE: buscan el texto en cualquier parte.
+        # El texto del usuario va como parametro %s, nunca pegado al SQL.
+        patron = "%" + buscar + "%"
+        cursor = conexion.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM empleados WHERE nombre LIKE %s OR departamento LIKE %s",
+                       (patron, patron))
+        filas = cursor.fetchall()
+        cursor.close()
+
+        idsEncontrados = []
+        for fila in filas:
+            idsEncontrados.append(fila["id"])
+
+        # Solo se dejan los expedientes de los empleados encontrados
+        encontrados = []
+        for expediente in expedientes:
+            if expediente["id"] in idsEncontrados:
+                encontrados.append(expediente)
+        expedientes = encontrados
+
     conexion.close()
-    return render_template("empleados.html", expedientes=expedientes)
+    return render_template("empleados.html", expedientes=expedientes, buscar=buscar)
 
 
 # REGISTRAR: formulario para registrar un empleado
@@ -199,6 +225,36 @@ def listarDocumentos():
                            pendientes=len(filas) - entregados)
 
 
+# MEJORA (Majo Guirola): exportar a CSV el listado con JOIN de empleados y documentos
+@app.route("/documentos/csv")
+def exportarCsv():
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT e.nombre, e.perfil, e.departamento, d.documento, d.estado, d.version, d.fechaActualizacion "
+        "FROM empleados e JOIN documentos d ON d.empleadoId = e.id "
+        "ORDER BY e.nombre, d.id"
+    )
+    filas = cursor.fetchall()
+    cursor.close()
+    conexion.close()
+
+    # Se escribe el CSV en memoria: primero los encabezados y luego una fila por documento
+    salida = io.StringIO()
+    escritor = csv.writer(salida)
+    escritor.writerow(["Empleado", "Perfil", "Departamento", "Documento", "Estado", "Version", "Ultima actualizacion"])
+    for fila in filas:
+        fecha = fila["fechaActualizacion"]
+        if fecha is None:
+            fecha = ""
+        escritor.writerow([fila["nombre"], fila["perfil"], fila["departamento"], fila["documento"],
+                           fila["estado"], fila["version"], fecha])
+
+    # utf-8-sig hace que Excel muestre bien las tildes
+    return Response(salida.getvalue().encode("utf-8-sig"), mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=expedientes.csv"})
+
+
 # MODIFICAR: actualizar el estado de un documento del expediente
 @app.route("/documentos/editar/<int:documentoId>", methods=["GET", "POST"])
 def editarDocumento(documentoId):
@@ -300,8 +356,20 @@ def resumen():
         else:
             sinIniciar = sinIniciar + 1
 
-    return render_template("resumen.html", expedientes=expedientes, total=len(expedientes),
-                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar)
+    # MEJORA (Italo Vidaurre): filtro por clasificacion.
+    # Los contadores siempre cuentan a todos; la tabla muestra solo la clasificacion elegida.
+    filtro = request.args.get("estado", "")
+    if filtro not in ["completo", "incompleto", "sin iniciar"]:
+        filtro = ""
+
+    mostrados = []
+    for expediente in expedientes:
+        if filtro == "" or expediente["estado"] == filtro:
+            mostrados.append(expediente)
+
+    return render_template("resumen.html", expedientes=mostrados, total=len(expedientes),
+                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar,
+                           filtro=filtro)
 
 
 # MEJORA (Diego Diaz): segundo reporte con contadores y acumuladores por departamento
