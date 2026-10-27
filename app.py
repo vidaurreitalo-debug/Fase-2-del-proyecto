@@ -356,8 +356,20 @@ def resumen():
         else:
             sinIniciar = sinIniciar + 1
 
-    return render_template("resumen.html", expedientes=expedientes, total=len(expedientes),
-                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar)
+    # MEJORA (Italo Vidaurre): filtro por clasificacion.
+    # Los contadores siempre cuentan a todos; la tabla muestra solo la clasificacion elegida.
+    filtro = request.args.get("estado", "")
+    if filtro not in ["completo", "incompleto", "sin iniciar"]:
+        filtro = ""
+
+    mostrados = []
+    for expediente in expedientes:
+        if filtro == "" or expediente["estado"] == filtro:
+            mostrados.append(expediente)
+
+    return render_template("resumen.html", expedientes=mostrados, total=len(expedientes),
+                           completos=completos, incompletos=incompletos, sinIniciar=sinIniciar,
+                           filtro=filtro)
 
 
 # El servidor se inicia al final, despues de definir TODAS las rutas
