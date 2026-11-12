@@ -8,17 +8,25 @@
 </head>
 <body>
 <header class="barra">
-  <span class="marca">Hospital de Diagnostico · Expedientes Digitales</span>
+  <a class="marca" href="/empleados">
+    <span class="logo">+</span>
+    <span>Hospital de Diagnostico<small>Expedientes Digitales</small></span>
+  </a>
   <nav>
-    <a href="/empleados">Empleados</a>
-    <a href="/empleados/nuevo">Registrar</a>
-    <a href="/documentos">Documentos</a>
-    <a href="/resumen">Resumen</a>
-    <a href="/reporte/departamentos">Por departamento</a>
+    <a href="/empleados" class="{% if request.path == '/empleados' or request.path.startswith('/empleados/') and request.path != '/empleados/nuevo' %}activo{% endif %}">Empleados</a>
+    <a href="/empleados/nuevo" class="{% if request.path == '/empleados/nuevo' %}activo{% endif %}">Registrar</a>
+    <a href="/documentos" class="{% if request.path == '/documentos' %}activo{% endif %}">Documentos</a>
+    <a href="/archivos" class="{% if request.path == '/archivos' %}activo{% endif %}">Archivos</a>
+    <a href="/resumen" class="{% if request.path == '/resumen' %}activo{% endif %}">Resumen</a>
+    <a href="/reporte/departamentos" class="{% if request.path == '/reporte/departamentos' %}activo{% endif %}">Por departamento</a>
   </nav>
 </header>
 <main>
-{% block contenido %}{% endblock %}
+  {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+  <p class="aviso {{ categoria }}">{{ mensaje }}</p>
+  {% endfor %}
+  {% block contenido %}{% endblock %}
 </main>
+<footer class="pie">Hospital de Diagnostico · Expedientes Digitales · Tarea 3 de Fundamentos de Programacion</footer>
 </body>
 </html>

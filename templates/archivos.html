@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block titulo %}Archivos{% endblock %}
+{% block contenido %}
+<h1>Archivos subidos</h1>
+<p class="subtitulo">Todas las versiones guardadas en MySQL, de la mas reciente a la mas antigua. Total: <strong>{{ total }}</strong></p>
+
+<div class="tarjetas">
+  <div class="tarjeta vigente"><span class="numero">{{ vigentes }}</span>Vigentes</div>
+  <div class="tarjeta vencido"><span class="numero">{{ vencidos }}</span>Vencidos</div>
+  <div class="tarjeta version-anterior"><span class="numero">{{ anteriores }}</span>Versiones anteriores</div>
+</div>
+
+<p class="filtros">Mostrar:
+  <a class="boton {% if filtro == '' %}activo{% endif %}" href="/archivos">Todos</a>
+  <a class="boton {% if filtro == 'vigente' %}activo{% endif %}" href="/archivos?estado=vigente">Vigentes</a>
+  <a class="boton {% if filtro == 'vencido' %}activo{% endif %}" href="/archivos?estado=vencido">Vencidos</a>
+  <a class="boton {% if filtro == 'version anterior' %}activo{% endif %}" href="/archivos?estado=version anterior">Versiones anteriores</a>
+</p>
+
+<div class="tabla">
+<table>
+  <tr>
+    <th>Empleado</th>
+    <th>Documento</th>
+    <th>Version</th>
+    <th>Archivo</th>
+    <th>Tamano</th>
+    <th>Vencimiento</th>
+    <th>Subido</th>
+    <th>Estado</th>
+    <th></th>
+  </tr>
+  {% for archivo in archivos %}
+  <tr>
+    <td><a href="/empleados/{{ archivo.empleadoId }}">{{ archivo.nombre }}</a></td>
+    <td>{{ archivo.documento }}</td>
+    <td>v{{ archivo.version }}</td>
+    <td>{{ archivo.nombreOriginal }}</td>
+    <td>{{ archivo.tamano|kb }}</td>
+    <td>{{ archivo.fechaVencimiento|fecha }}</td>
+    <td>{{ archivo.fechaSubida.strftime('%d/%m/%Y %H:%M') }}</td>
+    <td><span class="estado {{ archivo.estado|replace(' ', '-') }}">{{ archivo.estado }}</span></td>
+    <td><a class="boton pequeno secundario" href="/archivos/{{ archivo.id }}/descargar">Descargar</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="vacio">{% if filtro %}No hay archivos con estado {{ filtro }}.{% else %}Todavia no se ha subido ningun archivo.{% endif %}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

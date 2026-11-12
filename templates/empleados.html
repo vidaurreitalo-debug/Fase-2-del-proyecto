@@ -1,40 +1,55 @@
 {% extends "base.html" %}
 {% block titulo %}Empleados{% endblock %}
 {% block contenido %}
-<h1>Empleados y estado de su expediente</h1>
+<div class="encabezado">
+  <div>
+    <h1>Empleados</h1>
+    <p class="subtitulo">Estado del expediente de cada empleado segun los archivos que ha subido.</p>
+  </div>
+  <a class="boton" href="/empleados/nuevo">+ Registrar empleado</a>
+</div>
+
 <form method="GET" action="/empleados" class="busqueda">
   <input type="text" name="buscar" value="{{ buscar }}" placeholder="Buscar por nombre o departamento">
   <button type="submit">Buscar</button>
-  {% if buscar %}<a class="boton" href="/empleados">Ver todos</a>{% endif %}
+  {% if buscar %}<a class="boton secundario" href="/empleados">Ver todos</a>{% endif %}
 </form>
 {% if buscar %}<p>Resultados para "<strong>{{ buscar }}</strong>": {{ expedientes|length }}</p>{% endif %}
+
+<div class="tabla">
 <table>
   <tr>
     <th>Nombre</th>
     <th>Perfil</th>
     <th>Departamento</th>
     <th>Ingreso</th>
-    <th>Documentos</th>
+    <th>Documentos vigentes</th>
     <th>Estado</th>
     <th>Acciones</th>
   </tr>
   {% for expediente in expedientes %}
   <tr>
-    <td>{{ expediente.nombre }}</td>
-    <td>{{ expediente.perfil }}</td>
+    <td><a href="/empleados/{{ expediente.id }}"><strong>{{ expediente.nombre }}</strong></a></td>
+    <td><span class="etiqueta">{{ expediente.perfil }}</span></td>
     <td>{{ expediente.departamento }}</td>
-    <td>{{ expediente.fechaIngreso }}</td>
-    <td>{{ expediente.documentosEntregados }} de {{ expediente.documentosRequeridos }}</td>
+    <td>{{ expediente.fechaIngreso|fecha }}</td>
+    <td>
+      {{ expediente.documentosVigentes }} de {{ expediente.documentosRequeridos }}
+      {% if expediente.documentosVencidos > 0 %}<br><small class="texto-vencido">{{ expediente.documentosVencidos }} vencido(s)</small>{% endif %}
+    </td>
     <td><span class="estado {{ expediente.estado|replace(' ', '-') }}">{{ expediente.estado }}</span></td>
-    <td class="acciones">
-      <a class="boton" href="/empleados/{{ expediente.id }}">Ver expediente</a>
-      <form method="POST" action="/empleados/eliminar/{{ expediente.id }}" onsubmit="return confirm('¿Eliminar a {{ expediente.nombre }} y todo su expediente?');">
-        <button type="submit" class="peligro">Eliminar</button>
+    <td>
+      <div class="acciones">
+      <a class="boton pequeno" href="/empleados/{{ expediente.id }}">Ver expediente</a>
+      <form method="POST" action="/empleados/eliminar/{{ expediente.id }}" onsubmit="return confirm('¿Eliminar a {{ expediente.nombre }} con todo su expediente y sus archivos?');">
+        <button type="submit" class="pequeno peligro">Eliminar</button>
       </form>
+      </div>
     </td>
   </tr>
   {% else %}
-  <tr><td colspan="7">{% if buscar %}Ningun empleado coincide con la busqueda.{% else %}No hay empleados registrados.{% endif %}</td></tr>
+  <tr><td colspan="7" class="vacio">{% if buscar %}Ningun empleado coincide con la busqueda.{% else %}No hay empleados registrados.{% endif %}</td></tr>
   {% endfor %}
 </table>
+</div>
 {% endblock %}

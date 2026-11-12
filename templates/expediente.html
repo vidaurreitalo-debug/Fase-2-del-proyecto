@@ -1,27 +1,78 @@
 {% extends "base.html" %}
 {% block titulo %}Expediente de {{ empleado.nombre }}{% endblock %}
 {% block contenido %}
-<h1>Expediente de {{ empleado.nombre }}</h1>
-<p>Perfil: <strong>{{ empleado.perfil }}</strong> · Departamento: {{ empleado.departamento }} · Ingreso: {{ empleado.fechaIngreso }}</p>
-<p>Documentos entregados: {{ documentosEntregados }} de {{ documentos|length }} ·
-   Estado: <span class="estado {{ estado|replace(' ', '-') }}">{{ estado }}</span></p>
-<table>
-  <tr>
-    <th>Documento</th>
-    <th>Estado</th>
-    <th>Version</th>
-    <th>Ultima actualizacion</th>
-    <th>Acciones</th>
-  </tr>
-  {% for documento in documentos %}
-  <tr>
-    <td>{{ documento.documento }}</td>
-    <td>{{ documento.estado }}</td>
-    <td>{{ documento.version }}</td>
-    <td>{{ documento.fechaActualizacion or "-" }}</td>
-    <td><a class="boton" href="/documentos/editar/{{ documento.id }}">Actualizar</a></td>
-  </tr>
-  {% endfor %}
-</table>
-<p><a href="/empleados">Volver al listado</a></p>
+<div class="encabezado">
+  <div>
+    <h1>{{ empleado.nombre }}</h1>
+    <p class="subtitulo">
+      <span class="etiqueta">{{ empleado.perfil }}</span>
+      {{ empleado.departamento }} · Ingreso: {{ empleado.fechaIngreso|fecha }}
+    </p>
+  </div>
+  <div class="acciones">
+    <a class="boton" href="/empleados/{{ empleado.id }}/subir">Subir documento</a>
+    <a class="boton secundario" href="/empleados/editar/{{ empleado.id }}">Editar datos</a>
+  </div>
+</div>
+
+<div class="panel">
+  <p>Documentos vigentes: <strong>{{ vigentes }} de {{ documentos|length }}</strong>
+     {% if vencidos > 0 %}· <span class="texto-vencido">{{ vencidos }} vencido(s)</span>{% endif %}
+     · Estado: <span class="estado {{ estado|replace(' ', '-') }}">{{ estado }}</span></p>
+  <div class="progreso"><div class="relleno" style="width: {{ avance }}%"></div></div>
+  <p class="ayuda">{{ avance }}% del expediente al dia</p>
+</div>
+
+{% for documento in documentos %}
+<div class="documento">
+  <div class="documento-cabecera">
+    <div>
+      <h3>{{ documento.documento }}</h3>
+      {% if documento.actual %}
+      <small>Version {{ documento.version }} · {{ documento.actual.nombreOriginal }}
+        {% if documento.actual.fechaVencimiento %}· vence el {{ documento.actual.fechaVencimiento|fecha }}{% endif %}</small>
+      {% else %}
+      <small>Todavia no se ha subido ningun archivo.</small>
+      {% endif %}
+    </div>
+    <div class="acciones">
+      <span class="estado {{ documento.estado }}">{{ documento.estado }}</span>
+      <a class="boton pequeno" href="/empleados/{{ empleado.id }}/subir?documento={{ documento.id }}">
+        {% if documento.actual %}Nueva version{% else %}Subir{% endif %}</a>
+    </div>
+  </div>
+
+  {% if documento.versiones|length > 0 %}
+  <table class="versiones">
+    <tr>
+      <th>Version</th>
+      <th>Archivo</th>
+      <th>Tamano</th>
+      <th>Vencimiento</th>
+      <th>Subido</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+    {% for archivo in documento.versiones %}
+    <tr>
+      <td>v{{ archivo.version }}</td>
+      <td>{{ archivo.nombreOriginal }}</td>
+      <td>{{ archivo.tamano|kb }}</td>
+      <td>{{ archivo.fechaVencimiento|fecha }}</td>
+      <td>{{ archivo.fechaSubida.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td><span class="estado {{ archivo.estado|replace(' ', '-') }}">{{ archivo.estado }}</span></td>
+      <td><a class="boton pequeno secundario" href="/archivos/{{ archivo.id }}/descargar">Descargar</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endfor %}
+
+<div class="zona-peligro">
+  <form method="POST" action="/empleados/eliminar/{{ empleado.id }}" onsubmit="return confirm('¿Eliminar a {{ empleado.nombre }} con todo su expediente y sus archivos?');">
+    <button type="submit" class="peligro">Eliminar empleado y todos sus archivos</button>
+  </form>
+  <a href="/empleados">Volver al listado</a>
+</div>
 {% endblock %}
