@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}No encontrado{% endblock %}
+{% block contenido %}
+<div class="panel centrado">
+  <h1>404</h1>
+  <p>El empleado, documento o archivo que busca no existe.</p>
+  <a class="boton" href="/empleados">Volver al inicio</a>
+</div>
+{% endblock %}
