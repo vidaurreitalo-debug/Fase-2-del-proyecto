@@ -2,8 +2,11 @@
 {% block titulo %}Registrar empleado{% endblock %}
 {% block contenido %}
 <h1>Registrar empleado</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="POST" action="/empleados/nuevo" class="formulario">
+<p class="subtitulo">Su expediente se crea solo, con los documentos que exige su perfil.</p>
+{% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
+
+<!-- enctype multipart/form-data: sin esto el archivo nunca llega al servidor -->
+<form method="POST" action="/empleados/nuevo" enctype="multipart/form-data" class="formulario">
   <label for="nombre">Nombre completo</label>
   <input type="text" id="nombre" name="nombre" value="{{ datos.nombre }}">
 
@@ -21,6 +24,19 @@
   <label for="fechaIngreso">Fecha de ingreso</label>
   <input type="date" id="fechaIngreso" name="fechaIngreso" value="{{ datos.fechaIngreso }}">
 
-  <button type="submit">Guardar</button>
+  <fieldset>
+    <legend>DUI (opcional)</legend>
+    <p class="ayuda">Puede subirlo ahora o despues desde el expediente. PDF o Word, maximo {{ tamanoMaximo }} KB.
+       {% if error %}<br>Si hubo un error, vuelva a elegir el archivo.{% endif %}</p>
+    <label for="archivoDui">Archivo del DUI</label>
+    <input type="file" id="archivoDui" name="archivoDui" accept=".pdf,.doc,.docx">
+    <label for="venceDui">Fecha de vencimiento del DUI</label>
+    <input type="date" id="venceDui" name="venceDui" value="{{ datos.venceDui }}">
+  </fieldset>
+
+  <div class="botones">
+    <button type="submit">Guardar</button>
+    <a class="boton secundario" href="/empleados">Cancelar</a>
+  </div>
 </form>
 {% endblock %}
