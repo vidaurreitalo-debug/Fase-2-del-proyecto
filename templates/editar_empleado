@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titulo %}Editar empleado{% endblock %}
+{% block contenido %}
+<h1>Editar empleado</h1>
+<p class="subtitulo">El perfil no se puede cambiar porque define los documentos de su expediente.</p>
+{% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
+<form method="POST" action="/empleados/editar/{{ empleado.id }}" class="formulario">
+  <label for="nombre">Nombre completo</label>
+  <input type="text" id="nombre" name="nombre" value="{{ datos.nombre }}">
+
+  <label>Perfil</label>
+  <input type="text" value="{{ empleado.perfil }}" disabled>
+
+  <label for="departamento">Departamento</label>
+  <input type="text" id="departamento" name="departamento" value="{{ datos.departamento }}">
+
+  <label for="fechaIngreso">Fecha de ingreso</label>
+  <input type="date" id="fechaIngreso" name="fechaIngreso" value="{{ datos.fechaIngreso }}">
+
+  <div class="botones">
+    <button type="submit">Guardar cambios</button>
+    <a class="boton secundario" href="/empleados/{{ empleado.id }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
