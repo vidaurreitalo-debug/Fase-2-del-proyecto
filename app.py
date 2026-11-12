@@ -2,8 +2,8 @@ import csv
 import io
 import mysql.connector
 from datetime import date, datetime
-from flask import (Flask, render_template, request, redirect, jsonify, abort, Response,
-                   send_file, flash)
+from flask import (Flask, render_template, request, redirect, jsonify, abort,
+                   Response, send_file, flash)
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -16,6 +16,8 @@ EXTENSIONES_PERMITIDAS = [".pdf", ".doc", ".docx"]
 # siempre cabe en la sentencia INSERT sin cortar la conexion.
 TAMANO_MAXIMO_KB = 500
 TAMANO_MAXIMO = TAMANO_MAXIMO_KB * 1024
+# Dias antes del vencimiento en que un documento se marca "por vencer"
+DIAS_AVISO = 30
 
 
 def conectar():
@@ -681,7 +683,7 @@ def reporteDepartamentos():
         if nombre not in departamentos:
             departamentos[nombre] = {"departamento": nombre, "empleados": 0, "completos": 0,
                                      "incompletos": 0, "sinIniciar": 0,
-                                     "entregados": 0, "requeridos": 0}
+                                     "vigentes": 0, "vencidos": 0, "requeridos": 0}
         datos = departamentos[nombre]
 
         # Contadores
@@ -694,30 +696,74 @@ def reporteDepartamentos():
             datos["sinIniciar"] = datos["sinIniciar"] + 1
 
         # Acumuladores
-        datos["entregados"] = datos["entregados"] + expediente["documentosVigentes"]
+        datos["vigentes"] = datos["vigentes"] + expediente["documentosVigentes"]
+        datos["vencidos"] = datos["vencidos"] + expediente["documentosVencidos"]
         datos["requeridos"] = datos["requeridos"] + expediente["documentosRequeridos"]
 
-    # Porcentaje de avance de cada departamento
+    # Porcentaje de avance de cada departamento (solo cuentan los documentos vigentes)
     filas = []
-    totalEntregados = 0
+    totalVigentes = 0
     totalRequeridos = 0
     for nombre in sorted(departamentos):
         datos = departamentos[nombre]
         if datos["requeridos"] > 0:
-            datos["avance"] = round(datos["entregados"] * 100 / datos["requeridos"])
+            datos["avance"] = round(datos["vigentes"] * 100 / datos["requeridos"])
         else:
             datos["avance"] = 0
-        totalEntregados = totalEntregados + datos["entregados"]
+        totalVigentes = totalVigentes + datos["vigentes"]
         totalRequeridos = totalRequeridos + datos["requeridos"]
         filas.append(datos)
 
     avanceGeneral = 0
     if totalRequeridos > 0:
-        avanceGeneral = round(totalEntregados * 100 / totalRequeridos)
+        avanceGeneral = round(totalVigentes * 100 / totalRequeridos)
 
     return render_template("reporte_departamentos.html", filas=filas,
-                           totalEntregados=totalEntregados, totalRequeridos=totalRequeridos,
+                           totalVigentes=totalVigentes, totalRequeridos=totalRequeridos,
                            avanceGeneral=avanceGeneral)
+
+
+def diasRestantes(alerta):
+    # Se usa para ordenar las alertas por los dias que les faltan
+    return alerta["dias"]
+
+
+# MEJORA EXTRA: alertas de vencimiento. Revisa la version actual de cada
+# documento que tiene fecha de vencimiento y avisa cuales ya vencieron y
+# cuales vencen en los proximos 30 dias.
+@app.route("/vencimientos")
+def alertasVencimiento():
+    conexion = conectar()
+    documentos = obtenerDocumentos(conexion)
+    conexion.close()
+
+    alertas = []
+    vencidos = 0
+    porVencer = 0
+    alDia = 0
+    for documento in documentos:
+        actual = documento["actual"]
+        if actual is not None and actual["fechaVencimiento"] is not None:
+            dias = (actual["fechaVencimiento"] - date.today()).days
+            if dias < 0:
+                alerta = "vencido"
+                vencidos = vencidos + 1
+            elif dias <= DIAS_AVISO:
+                alerta = "por vencer"
+                porVencer = porVencer + 1
+            else:
+                alerta = "al dia"
+                alDia = alDia + 1
+            alertas.append({"empleadoId": documento["empleadoId"], "nombre": documento["nombre"],
+                            "documentoId": documento["id"], "documento": documento["documento"],
+                            "version": actual["version"], "fechaVencimiento": actual["fechaVencimiento"],
+                            "dias": dias, "alerta": alerta})
+
+    # Ordenar: primero los que vencen antes (menos dias restantes)
+    alertas.sort(key=diasRestantes)
+
+    return render_template("vencimientos.html", alertas=alertas, vencidos=vencidos,
+                           porVencer=porVencer, alDia=alDia, diasAviso=DIAS_AVISO)
 
 
 # Pagina para cuando un empleado o un archivo no existe

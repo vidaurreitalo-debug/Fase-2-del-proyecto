@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Vencimientos{% endblock %}
+{% block contenido %}
+<h1>Alertas de vencimiento</h1>
+<p class="subtitulo">Version actual de cada documento que tiene fecha de vencimiento. "Por vencer" = vence en los proximos {{ diasAviso }} dias.</p>
+
+<div class="tarjetas">
+  <div class="tarjeta vencido"><span class="numero">{{ vencidos }}</span>Vencidos</div>
+  <div class="tarjeta por-vencer"><span class="numero">{{ porVencer }}</span>Por vencer</div>
+  <div class="tarjeta vigente"><span class="numero">{{ alDia }}</span>Al dia</div>
+</div>
+
+<div class="tabla">
+<table>
+  <tr>
+    <th>Empleado</th>
+    <th>Documento</th>
+    <th>Version</th>
+    <th>Vence</th>
+    <th>Dias restantes</th>
+    <th>Alerta</th>
+    <th></th>
+  </tr>
+  {% for alerta in alertas %}
+  <tr>
+    <td><a href="/empleados/{{ alerta.empleadoId }}">{{ alerta.nombre }}</a></td>
+    <td>{{ alerta.documento }}</td>
+    <td>v{{ alerta.version }}</td>
+    <td>{{ alerta.fechaVencimiento|fecha }}</td>
+    <td>{% if alerta.dias < 0 %}vencio hace {{ -alerta.dias }} dia(s){% else %}{{ alerta.dias }}{% endif %}</td>
+    <td><span class="estado {{ alerta.alerta|replace(' ', '-') }}">{{ alerta.alerta }}</span></td>
+    <td>{% if alerta.alerta != 'al dia' %}<a class="boton pequeno" href="/empleados/{{ alerta.empleadoId }}/subir?documento={{ alerta.documentoId }}">Renovar</a>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="vacio">Ningun documento subido tiene fecha de vencimiento.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}
