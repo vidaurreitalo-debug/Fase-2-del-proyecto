@@ -2,10 +2,19 @@ import csv
 import io
 import mysql.connector
 from datetime import date, datetime
-from flask import Flask, render_template, request, redirect, jsonify, abort, Response
+from flask import Flask, render_template, request, redirect, jsonify, abort, Response, flash
 
 app = Flask(__name__)
 app.json.sort_keys = False
+# La clave secreta la necesita flash() para mostrar mensajes entre paginas
+app.secret_key = "expedientes-digitales-tarea3"
+
+# Reglas de los archivos que se pueden subir
+EXTENSIONES_PERMITIDAS = [".pdf", ".doc", ".docx"]
+# El MySQL de XAMPP trae max_allowed_packet = 1M. Con 500 KB el archivo
+# siempre cabe en la sentencia INSERT sin cortar la conexion.
+TAMANO_MAXIMO_KB = 500
+TAMANO_MAXIMO = TAMANO_MAXIMO_KB * 1024
 
 
 def conectar():
@@ -60,6 +69,65 @@ def validarEmpleado(datos, perfiles):
     if fecha > date.today():
         return "La fecha de ingreso no puede ser futura."
     return ""
+
+
+def validarArchivo(archivo):
+    # Revisa el archivo recibido con request.files.
+    # Devuelve (error, nombreOriginal, contenido). Si error no es "", no se guarda nada.
+    if archivo is None or archivo.filename == "":
+        return "Elija un archivo para subir.", "", None
+
+    # Nombre original sin la ruta de la carpeta (algunos navegadores la envian)
+    nombreOriginal = archivo.filename.replace("\\", "/").split("/")[-1]
+    if len(nombreOriginal) > 255:
+        return "El nombre del archivo es demasiado largo (maximo 255 caracteres).", "", None
+
+    # La extension se compara en minusculas: .PDF y .pdf son validas
+    extensionValida = False
+    for extension in EXTENSIONES_PERMITIDAS:
+        if nombreOriginal.lower().endswith(extension):
+            extensionValida = True
+    if not extensionValida:
+        return "Tipo de archivo no permitido. Solo se aceptan PDF o Word (.pdf, .doc, .docx).", "", None
+
+    contenido = archivo.read()
+    if len(contenido) == 0:
+        return "El archivo esta vacio (0 bytes).", "", None
+    if len(contenido) > TAMANO_MAXIMO:
+        return ("El archivo pesa " + formatoKb(len(contenido)) + " y el maximo permitido es "
+                + str(TAMANO_MAXIMO_KB) + " KB."), "", None
+    return "", nombreOriginal, contenido
+
+
+def validarVencimiento(texto, requiereVencimiento):
+    # Devuelve (error, fecha). La fecha es None si el documento no la necesita.
+    if texto == "":
+        if requiereVencimiento:
+            return "La fecha de vencimiento es obligatoria para este documento.", None
+        return "", None
+    try:
+        fecha = datetime.strptime(texto, "%Y-%m-%d").date()
+    except ValueError:
+        return "La fecha de vencimiento no es valida (formato AAAA-MM-DD).", None
+    if fecha.year < 2000 or fecha.year > 2100:
+        return "La fecha de vencimiento esta fuera de rango.", None
+    return "", fecha
+
+
+def guardarArchivo(cursor, documentoId, nombreOriginal, contenido, fechaVencimiento):
+    # Nunca reemplaza: calcula la version siguiente y guarda un registro nuevo
+    cursor.execute("SELECT MAX(version) AS ultima FROM archivos WHERE documentoId = %s", (documentoId,))
+    fila = cursor.fetchone()
+    if fila["ultima"] is None:
+        version = 1
+    else:
+        version = fila["ultima"] + 1
+    cursor.execute(
+        "INSERT INTO archivos (documentoId, version, nombreOriginal, tamano, contenido, fechaVencimiento) "
+        "VALUES (%s, %s, %s, %s, %s, %s)",
+        (documentoId, version, nombreOriginal, len(contenido), contenido, fechaVencimiento)
+    )
+    return version
 
 
 def estadoArchivo(archivo, versionMaxima):
@@ -182,7 +250,7 @@ def inicio():
 
 
 # CONSULTAR: listado de empleados con el estado de su expediente
-# MEJORA (Carlos Campos): busqueda por texto en el nombre o el departamento
+# MEJORA (Carlos Campos): busqueda por nombre, departamento o nombre de archivo
 @app.route("/empleados")
 def listarEmpleados():
     buscar = request.args.get("buscar", "").strip()
@@ -192,10 +260,16 @@ def listarEmpleados():
     if buscar != "":
         # Los % son comodines de LIKE: buscan el texto en cualquier parte.
         # El texto del usuario va como parametro %s, nunca pegado al SQL.
+        # LEFT JOIN: tambien aparecen empleados que todavia no tienen archivos.
         patron = "%" + buscar + "%"
         cursor = conexion.cursor(dictionary=True)
-        cursor.execute("SELECT id FROM empleados WHERE nombre LIKE %s OR departamento LIKE %s",
-                       (patron, patron))
+        cursor.execute(
+            "SELECT DISTINCT e.id FROM empleados e "
+            "LEFT JOIN documentos d ON d.empleadoId = e.id "
+            "LEFT JOIN archivos a ON a.documentoId = d.id "
+            "WHERE e.nombre LIKE %s OR e.departamento LIKE %s OR a.nombreOriginal LIKE %s",
+            (patron, patron, patron)
+        )
         filas = cursor.fetchall()
         cursor.close()
 
@@ -214,24 +288,33 @@ def listarEmpleados():
     return render_template("empleados.html", expedientes=expedientes, buscar=buscar)
 
 
-# REGISTRAR: formulario para registrar un empleado
+# REGISTRAR: formulario para registrar un empleado (y, si se quiere, subir su DUI)
 @app.route("/empleados/nuevo", methods=["GET", "POST"])
 def registrarEmpleado():
     conexion = conectar()
     perfiles = obtenerPerfiles(conexion)
     error = ""
-    datos = {"nombre": "", "perfil": "", "departamento": "", "fechaIngreso": ""}
+    datos = {"nombre": "", "perfil": "", "departamento": "", "fechaIngreso": "", "venceDui": ""}
 
     if request.method == "POST":
         datos["nombre"] = request.form.get("nombre", "").strip()
         datos["perfil"] = request.form.get("perfil", "").strip().lower()
         datos["departamento"] = request.form.get("departamento", "").strip()
         datos["fechaIngreso"] = request.form.get("fechaIngreso", "").strip()
+        datos["venceDui"] = request.form.get("venceDui", "").strip()
+        archivoDui = request.files.get("archivoDui")
 
         # 1. Validar los datos del empleado
         error = validarEmpleado(datos, perfiles)
 
-        # 2. Si no hay error, guardar el empleado (padre) y despues su expediente (hijos)
+        # 2. El DUI es opcional al registrar; si se eligio un archivo, se valida
+        subirDui = archivoDui is not None and archivoDui.filename != ""
+        if error == "" and subirDui:
+            error, nombreDui, contenidoDui = validarArchivo(archivoDui)
+            if error == "":
+                error, fechaDui = validarVencimiento(datos["venceDui"], True)
+
+        # 3. Si no hay error, guardar el empleado (padre) y despues su expediente (hijos)
         if error == "":
             cursor = conexion.cursor(dictionary=True)
             cursor.execute(
@@ -241,7 +324,6 @@ def registrarEmpleado():
             # id que MySQL le dio al empleado nuevo: es la llave foranea de sus documentos
             empleadoId = cursor.lastrowid
 
-            # Un documento por cada tipo de documento del checklist de su perfil
             cursor.execute("SELECT tipoDocumentoId FROM checklist WHERE perfil = %s ORDER BY id",
                            (datos["perfil"],))
             checklist = cursor.fetchall()
@@ -249,13 +331,23 @@ def registrarEmpleado():
                 cursor.execute("INSERT INTO documentos (empleadoId, tipoDocumentoId) VALUES (%s, %s)",
                                (empleadoId, fila["tipoDocumentoId"]))
 
+            if subirDui:
+                cursor.execute(
+                    "SELECT d.id FROM documentos d JOIN tipos_documento t ON t.id = d.tipoDocumentoId "
+                    "WHERE d.empleadoId = %s AND t.nombre = %s", (empleadoId, "DUI"))
+                documentoDui = cursor.fetchone()
+                if documentoDui is not None:
+                    guardarArchivo(cursor, documentoDui["id"], nombreDui, contenidoDui, fechaDui)
+
             conexion.commit()
             cursor.close()
             conexion.close()
+            flash("Empleado " + datos["nombre"] + " registrado correctamente.", "exito")
             return redirect("/empleados/" + str(empleadoId))
 
     conexion.close()
-    return render_template("nuevo.html", error=error, datos=datos, perfiles=perfiles)
+    return render_template("nuevo.html", error=error, datos=datos, perfiles=perfiles,
+                           tamanoMaximo=TAMANO_MAXIMO_KB)
 
 
 # CONSULTAR un expediente: documentos de un empleado con todas sus versiones
@@ -289,6 +381,68 @@ def verExpediente(empleadoId):
 
     return render_template("expediente.html", empleado=empleado, documentos=documentos,
                            vigentes=vigentes, vencidos=vencidos, estado=estado, avance=avance)
+
+
+# SUBIR ARCHIVO: formulario con enctype multipart/form-data.
+# Cada subida crea una version nueva; las anteriores se conservan.
+@app.route("/empleados/<int:empleadoId>/subir", methods=["GET", "POST"])
+def subirArchivo(empleadoId):
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM empleados WHERE id = %s", (empleadoId,))
+    empleado = cursor.fetchone()
+    cursor.close()
+    if empleado is None:
+        conexion.close()
+        abort(404)
+
+    documentos = obtenerDocumentos(conexion, empleadoId)
+    error = ""
+    documentoElegido = request.args.get("documento", "")
+    fechaVencimiento = ""
+
+    if request.method == "POST":
+        documentoElegido = request.form.get("documentoId", "")
+        fechaVencimiento = request.form.get("fechaVencimiento", "").strip()
+        archivo = request.files.get("archivo")
+
+        # 1. El tipo de documento debe ser uno del expediente de este empleado
+        documento = None
+        for opcion in documentos:
+            if str(opcion["id"]) == documentoElegido:
+                documento = opcion
+        if documento is None:
+            error = "Elija el tipo de documento que va a subir."
+
+        # 2. Validar el archivo (elegido, extension, vacio y tamano)
+        if error == "":
+            error, nombreOriginal, contenido = validarArchivo(archivo)
+
+        # 3. Validar la fecha de vencimiento (obligatoria para el DUI)
+        if error == "":
+            error, fecha = validarVencimiento(fechaVencimiento, documento["requiereVencimiento"])
+
+        # 4. Solo si todo esta bien se guarda en MySQL
+        if error == "":
+            cursor = conexion.cursor(dictionary=True)
+            try:
+                version = guardarArchivo(cursor, documento["id"], nombreOriginal, contenido, fecha)
+                conexion.commit()
+            except mysql.connector.Error:
+                version = 0
+                error = ("MySQL no pudo guardar el archivo. Revise que max_allowed_packet "
+                         "en my.ini de XAMPP sea mayor que el archivo.")
+            cursor.close()
+            if error == "":
+                conexion.close()
+                flash(documento["documento"] + ": se guardo la version " + str(version) +
+                      " (" + nombreOriginal + ").", "exito")
+                return redirect("/empleados/" + str(empleadoId))
+
+    conexion.close()
+    return render_template("subir.html", empleado=empleado, documentos=documentos, error=error,
+                           documentoElegido=documentoElegido, fechaVencimiento=fechaVencimiento,
+                           tamanoMaximo=TAMANO_MAXIMO_KB)
 
 
 # LISTADO DE ARCHIVOS: todas las versiones subidas, de la mas reciente a la mas antigua
@@ -406,6 +560,7 @@ def eliminarEmpleado(empleadoId):
     conexion.commit()
     cursor.close()
     conexion.close()
+    flash("Empleado eliminado junto con su expediente y sus archivos.", "exito")
     return redirect("/empleados")
 
 
