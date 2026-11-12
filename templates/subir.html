@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Subir documento{% endblock %}
+{% block contenido %}
+<h1>Subir documento</h1>
+<p class="subtitulo">Empleado: <strong>{{ empleado.nombre }}</strong> ({{ empleado.perfil }})</p>
+{% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
+
+<div class="dos-columnas">
+  <!-- enctype multipart/form-data: sin esto el archivo nunca llega al servidor -->
+  <form method="POST" action="/empleados/{{ empleado.id }}/subir" enctype="multipart/form-data" class="formulario">
+    <label for="documentoId">Tipo de documento</label>
+    <select id="documentoId" name="documentoId">
+      <option value="">Seleccione un documento</option>
+      {% for documento in documentos %}
+      <option value="{{ documento.id }}" {% if documento.id|string == documentoElegido %}selected{% endif %}>
+        {{ documento.documento }}{% if documento.requiereVencimiento %} (requiere vencimiento){% endif %} · version actual: {{ documento.version }}
+      </option>
+      {% endfor %}
+    </select>
+
+    <label for="archivo">Archivo</label>
+    <input type="file" id="archivo" name="archivo" accept=".pdf,.doc,.docx">
+    {% if error %}<p class="ayuda">Vuelva a elegir el archivo.</p>{% endif %}
+
+    <label for="fechaVencimiento">Fecha de vencimiento</label>
+    <input type="date" id="fechaVencimiento" name="fechaVencimiento" value="{{ fechaVencimiento }}">
+
+    <div class="botones">
+      <button type="submit">Subir archivo</button>
+      <a class="boton secundario" href="/empleados/{{ empleado.id }}">Cancelar</a>
+    </div>
+  </form>
+
+  <div class="caja-info">
+    <h3>Reglas de la subida</h3>
+    <ul>
+      <li>Solo archivos <strong>PDF o Word</strong> (.pdf, .doc, .docx).</li>
+      <li>Tamano maximo: <strong>{{ tamanoMaximo }} KB</strong>. No se aceptan archivos vacios.</li>
+      <li>La fecha de vencimiento es <strong>obligatoria para el DUI</strong> y opcional para los demas.</li>
+      <li>Subir de nuevo un documento crea una <strong>version nueva</strong>; la anterior se conserva.</li>
+      <li>Use solo documentos de prueba inventados, nunca un DUI real.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}
