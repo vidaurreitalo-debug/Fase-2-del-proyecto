@@ -6,7 +6,7 @@ Reto del Socio Formador **Hospital de Diagnóstico (Recursos Humanos)**.
 
 **Repositorio:** https://github.com/vidaurreitalo-debug/Fase-2-del-proyecto
 
-**Video de pruebas (YouTube):** PEGAR_AQUI_EL_ENLACE_DEL_VIDEO
+**Video de pruebas (YouTube):** 
 
 ## Qué hace el sistema
 
