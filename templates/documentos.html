@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 {% block titulo %}Documentos{% endblock %}
 {% block contenido %}
-<h1>Empleados con sus documentos</h1>
-<p>Consulta con JOIN entre las tablas <strong>empleados</strong> y <strong>documentos</strong>.
-   Documentos entregados: <strong>{{ entregados }}</strong> · Pendientes: <strong>{{ pendientes }}</strong></p>
-<p><a class="boton" href="/documentos/csv">Exportar a CSV</a></p>
+<div class="encabezado">
+  <div>
+    <h1>Empleados con sus documentos</h1>
+    <p class="subtitulo">Consulta con JOIN entre <strong>empleados</strong>, <strong>documentos</strong> y <strong>tipos_documento</strong>, con la version actual de cada archivo.</p>
+  </div>
+  <a class="boton" href="/documentos/csv">Exportar a CSV</a>
+</div>
+
+<div class="tarjetas">
+  <div class="tarjeta vigente"><span class="numero">{{ vigentes }}</span>Vigentes</div>
+  <div class="tarjeta vencido"><span class="numero">{{ vencidos }}</span>Vencidos</div>
+  <div class="tarjeta pendiente"><span class="numero">{{ pendientes }}</span>Pendientes</div>
+</div>
+
+<div class="tabla">
 <table>
   <tr>
     <th>Empleado</th>
@@ -13,22 +24,23 @@
     <th>Documento</th>
     <th>Estado</th>
     <th>Version</th>
-    <th>Ultima actualizacion</th>
+    <th>Archivo actual</th>
+    <th>Vencimiento</th>
   </tr>
-  {% for fila in filas %}
+  {% for documento in documentos %}
   <tr>
-    <td><a href="/empleados/{{ fila.empleadoId }}">{{ fila.nombre }}</a></td>
-    <td>{{ fila.perfil }}</td>
-    <td>{{ fila.departamento }}</td>
-    <td>{{ fila.documento }}</td>
-    <td><span class="estado {{ fila.estado }}">{{ fila.estado }}</span></td>
-    <td>{{ fila.version }}</td>
-    <td>{{ fila.fechaActualizacion or "-" }}</td>
+    <td><a href="/empleados/{{ documento.empleadoId }}">{{ documento.nombre }}</a></td>
+    <td>{{ documento.perfil }}</td>
+    <td>{{ documento.departamento }}</td>
+    <td>{{ documento.documento }}</td>
+    <td><span class="estado {{ documento.estado }}">{{ documento.estado }}</span></td>
+    <td>{{ documento.version }}</td>
+    <td>{% if documento.actual %}<a href="/archivos/{{ documento.actual.id }}/descargar">{{ documento.actual.nombreOriginal }}</a>{% else %}-{% endif %}</td>
+    <td>{% if documento.actual %}{{ documento.actual.fechaVencimiento|fecha }}{% else %}-{% endif %}</td>
   </tr>
   {% else %}
-  <tr><td colspan="7">No hay documentos registrados.</td></tr>
+  <tr><td colspan="8" class="vacio">No hay documentos registrados.</td></tr>
   {% endfor %}
 </table>
-{% endblock %}
-
+</div>
 {% endblock %}
