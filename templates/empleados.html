@@ -10,7 +10,7 @@
 </div>
 
 <form method="GET" action="/empleados" class="busqueda">
-  <input type="text" name="buscar" value="{{ buscar }}" placeholder="Buscar por nombre o departamento">
+  <input type="text" name="buscar" value="{{ buscar }}" placeholder="Buscar por nombre, departamento o nombre de archivo">
   <button type="submit">Buscar</button>
   {% if buscar %}<a class="boton secundario" href="/empleados">Ver todos</a>{% endif %}
 </form>
