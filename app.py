@@ -2,7 +2,8 @@ import csv
 import io
 import mysql.connector
 from datetime import date, datetime
-from flask import Flask, render_template, request, redirect, jsonify, abort, Response, flash
+from flask import (Flask, render_template, request, redirect, jsonify, abort, Response,
+                   send_file, flash)
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -383,6 +384,43 @@ def verExpediente(empleadoId):
                            vigentes=vigentes, vencidos=vencidos, estado=estado, avance=avance)
 
 
+# MODIFICAR: editar los datos de un empleado (el perfil no cambia porque define su checklist)
+@app.route("/empleados/editar/<int:empleadoId>", methods=["GET", "POST"])
+def editarEmpleado(empleadoId):
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM empleados WHERE id = %s", (empleadoId,))
+    empleado = cursor.fetchone()
+    if empleado is None:
+        cursor.close()
+        conexion.close()
+        abort(404)
+
+    error = ""
+    datos = {"nombre": empleado["nombre"], "perfil": empleado["perfil"],
+             "departamento": empleado["departamento"], "fechaIngreso": str(empleado["fechaIngreso"])}
+
+    if request.method == "POST":
+        datos["nombre"] = request.form.get("nombre", "").strip()
+        datos["departamento"] = request.form.get("departamento", "").strip()
+        datos["fechaIngreso"] = request.form.get("fechaIngreso", "").strip()
+        error = validarEmpleado(datos, [empleado["perfil"]])
+        if error == "":
+            cursor.execute(
+                "UPDATE empleados SET nombre = %s, departamento = %s, fechaIngreso = %s WHERE id = %s",
+                (datos["nombre"], datos["departamento"], datos["fechaIngreso"], empleadoId)
+            )
+            conexion.commit()
+            cursor.close()
+            conexion.close()
+            flash("Datos de " + datos["nombre"] + " actualizados.", "exito")
+            return redirect("/empleados/" + str(empleadoId))
+
+    cursor.close()
+    conexion.close()
+    return render_template("editar_empleado.html", empleado=empleado, datos=datos, error=error)
+
+
 # SUBIR ARCHIVO: formulario con enctype multipart/form-data.
 # Cada subida crea una version nueva; las anteriores se conservan.
 @app.route("/empleados/<int:empleadoId>/subir", methods=["GET", "POST"])
@@ -443,6 +481,22 @@ def subirArchivo(empleadoId):
     return render_template("subir.html", empleado=empleado, documentos=documentos, error=error,
                            documentoElegido=documentoElegido, fechaVencimiento=fechaVencimiento,
                            tamanoMaximo=TAMANO_MAXIMO_KB)
+
+
+# DESCARGA: busca el archivo por id y lo devuelve con su nombre original
+@app.route("/archivos/<int:archivoId>/descargar")
+def descargarArchivo(archivoId):
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+    # Esta es la unica consulta que trae la columna contenido
+    cursor.execute("SELECT nombreOriginal, contenido FROM archivos WHERE id = %s", (archivoId,))
+    archivo = cursor.fetchone()
+    cursor.close()
+    conexion.close()
+    if archivo is None:
+        abort(404)
+    return send_file(io.BytesIO(archivo["contenido"]), download_name=archivo["nombreOriginal"],
+                     as_attachment=True)
 
 
 # LISTADO DE ARCHIVOS: todas las versiones subidas, de la mas reciente a la mas antigua
@@ -517,7 +571,7 @@ def listarDocumentos():
                            vencidos=vencidos, pendientes=pendientes)
 
 
-# MEJORA (Majo Guirola): exportar a CSV el listado con JOIN de empleados y documentos
+# MEJORA (Majo Guirola): exportar a CSV el listado con JOIN, ahora con los datos del archivo
 @app.route("/documentos/csv")
 def exportarCsv():
     conexion = conectar()
@@ -527,10 +581,21 @@ def exportarCsv():
     # Se escribe el CSV en memoria: primero los encabezados y luego una fila por documento
     salida = io.StringIO()
     escritor = csv.writer(salida)
-    escritor.writerow(["Empleado", "Perfil", "Departamento", "Documento", "Estado", "Version actual"])
+    escritor.writerow(["Empleado", "Perfil", "Departamento", "Documento", "Estado", "Version actual",
+                       "Archivo", "Fecha de vencimiento", "Fecha de subida"])
     for documento in documentos:
+        actual = documento["actual"]
+        if actual is None:
+            archivo = ""
+            vence = ""
+            subida = ""
+        else:
+            archivo = actual["nombreOriginal"]
+            vence = actual["fechaVencimiento"] or ""
+            subida = actual["fechaSubida"]
         escritor.writerow([documento["nombre"], documento["perfil"], documento["departamento"],
-                           documento["documento"], documento["estado"], documento["version"]])
+                           documento["documento"], documento["estado"], documento["version"],
+                           archivo, vence, subida])
 
     # utf-8-sig hace que Excel muestre bien las tildes
     return Response(salida.getvalue().encode("utf-8-sig"), mimetype="text/csv",
@@ -653,6 +718,12 @@ def reporteDepartamentos():
     return render_template("reporte_departamentos.html", filas=filas,
                            totalEntregados=totalEntregados, totalRequeridos=totalRequeridos,
                            avanceGeneral=avanceGeneral)
+
+
+# Pagina para cuando un empleado o un archivo no existe
+@app.errorhandler(404)
+def noEncontrado(error):
+    return render_template("404.html"), 404
 
 
 # El servidor se inicia al final, despues de definir TODAS las rutas
