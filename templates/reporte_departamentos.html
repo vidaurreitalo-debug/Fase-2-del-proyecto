@@ -2,8 +2,10 @@
 {% block titulo %}Reporte por departamento{% endblock %}
 {% block contenido %}
 <h1>Reporte por departamento</h1>
-<p>Documentos entregados en todo el hospital: <strong>{{ totalEntregados }} de {{ totalRequeridos }}</strong>
+<p class="subtitulo">Documentos vigentes en todo el hospital: <strong>{{ totalVigentes }} de {{ totalRequeridos }}</strong>
    · Avance general: <strong>{{ avanceGeneral }}%</strong></p>
+<div class="progreso"><div class="relleno" style="width: {{ avanceGeneral }}%"></div></div>
+<div class="tabla">
 <table>
   <tr>
     <th>Departamento</th>
@@ -11,21 +13,28 @@
     <th>Completos</th>
     <th>Incompletos</th>
     <th>Sin iniciar</th>
-    <th>Documentos entregados</th>
+    <th>Vigentes</th>
+    <th>Vencidos</th>
     <th>Avance</th>
   </tr>
   {% for fila in filas %}
   <tr>
-    <td>{{ fila.departamento }}</td>
+    <td><strong>{{ fila.departamento }}</strong></td>
     <td>{{ fila.empleados }}</td>
     <td>{{ fila.completos }}</td>
     <td>{{ fila.incompletos }}</td>
     <td>{{ fila.sinIniciar }}</td>
-    <td>{{ fila.entregados }} de {{ fila.requeridos }}</td>
-    <td>{{ fila.avance }}%</td>
+    <td>{{ fila.vigentes }} de {{ fila.requeridos }}</td>
+    <td>{{ fila.vencidos }}</td>
+    <td class="celda-avance">
+      <div class="progreso chico"><div class="relleno" style="width: {{ fila.avance }}%"></div></div>
+      {{ fila.avance }}%
+    </td>
   </tr>
   {% else %}
-  <tr><td colspan="7">No hay empleados registrados.</td></tr>
+  <tr><td colspan="8" class="vacio">No hay empleados registrados.</td></tr>
   {% endfor %}
 </table>
+</div>
 {% endblock %}
+
